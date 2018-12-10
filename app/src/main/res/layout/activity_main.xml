@@ -1,0 +1,21 @@
+<LinearLayout
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <Button
+            android:id="@+id/serverButton"
+            android:text="SEND / SERVER / I STARTED HOTSPOT"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    <Button
+            android:id="@+id/clientButton"
+            android:layout_marginTop="64dp"
+            android:text="RECEIVE / CLIENT / I CONNECTED TO WIFI"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+</LinearLayout>
