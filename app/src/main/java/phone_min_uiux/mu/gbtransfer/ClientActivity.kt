@@ -27,32 +27,26 @@ class ClientActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_client)
-
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        wakeLock =
-                (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
-                    newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag").apply {
-                        acquire(1000 * 60 * 60 * 6) // 6 hours
-                    }
-                }
+        setupWakeLog()
 
         connectButton.setOnClickListener {
             connectButton.visibility = View.GONE
             progressBar.visibility = View.VISIBLE
 
             doAsync {
-                socket = Socket("192.168.43.1", 5000)
-                socket?.soTimeout = 1000 * 60 * 60 * 6 // 6 hours
+                socket = Socket(Utils.ip, Utils.port)
+                socket?.soTimeout = Utils.timeout
                 dataInputStream = DataInputStream(socket?.getInputStream())
                 dataOutputStream = DataOutputStream(socket?.getOutputStream())
 
                 uiThread {
                     textView.text = "Connected, Receiving file..."
+                    val timeStart = System.currentTimeMillis()
                     // receive file here
 
                     doAsync {
                         val fileOutputStream = FileOutputStream(File(filesDir, "file"))
-                        val byteArray = ByteArray(1024)
+                        val byteArray = ByteArray(Utils.byteArraySize)
                         var count = dataInputStream?.read(byteArray) ?: 0
                         while (count > 0) {
                             fileOutputStream.write(byteArray, 0, count)
@@ -63,13 +57,26 @@ class ClientActivity : AppCompatActivity() {
                         dataInputStream?.close()
                         dataOutputStream?.close()
                         uiThread {
-                            textView.text = "File received.\n\n${textView.text}"
+                            val timeEnd = System.currentTimeMillis()
+                            val timeDiff = timeEnd - timeStart
+                            val timeSec = timeDiff / 1000
+                            textView.text = "File received in ${timeSec} s\n\n${textView.text}"
                             progressBar.visibility = View.GONE
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun setupWakeLog() {
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        wakeLock =
+                (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+                    newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag").apply {
+                        acquire(Utils.timeout.toLong())
+                    }
+                }
     }
 
     override fun onDestroy() {
