@@ -3,6 +3,7 @@ package phone_min_uiux.mu.gbtransfer
 import android.content.Context
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
 import android.os.PowerManager
 import android.view.View
 import android.view.WindowManager
@@ -16,6 +17,19 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import android.content.Intent
+import android.net.Uri
+import android.support.v4.app.ShareCompat
+import android.support.v4.content.FileProvider
+import android.widget.TextView
+import android.media.MediaScannerConnection
+
+
+
+
+
+
+
 
 class ClientActivity : AppCompatActivity() {
 
@@ -40,33 +54,64 @@ class ClientActivity : AppCompatActivity() {
                 dataOutputStream = DataOutputStream(socket?.getOutputStream())
 
                 uiThread {
-                    textView.text = "Connected, Receiving file..."
+                    textView.text = "Connected, Receiving file size..."
                     val timeStart = System.currentTimeMillis()
                     // receive file here
 
                     doAsync {
-                        val fileOutputStream = FileOutputStream(File(filesDir, "file"))
-                        val byteArray = ByteArray(Utils.byteArraySize)
-                        var count = dataInputStream?.read(byteArray) ?: 0
-                        while (count > 0) {
-                            fileOutputStream.write(byteArray, 0, count)
-                            count = dataInputStream?.read(byteArray) ?: 0
-                        }
-                        fileOutputStream.close()
-                        socket?.close()
-                        dataInputStream?.close()
-                        dataOutputStream?.close()
+                        val fileSize: String = dataInputStream?.readUTF() ?: "1024"
+
                         uiThread {
-                            val timeEnd = System.currentTimeMillis()
-                            val timeDiff = timeEnd - timeStart
-                            val timeSec = timeDiff / 1000
-                            textView.text = "File received in ${timeSec} s\n\n${textView.text}"
-                            progressBar.visibility = View.GONE
+                            textView.text = "File size = ${fileSize} , Receiving file...\n\n${textView.text}"
+
+                            doAsync {
+
+                                val path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                                path.mkdirs()
+                                val file = File(path, "${System.currentTimeMillis()}.${Utils.fileExtension}")
+                                val fileOutputStream = FileOutputStream(file)
+                                val byteArray = ByteArray(fileSize.toInt())
+                                var count = dataInputStream?.read(byteArray) ?: 0
+                                while (count > 0) {
+                                    fileOutputStream.write(byteArray, 0, count)
+                                    count = dataInputStream?.read(byteArray) ?: 0
+                                }
+
+                                fileOutputStream.flush()
+                                fileOutputStream.close()
+                                socket?.close()
+                                dataInputStream?.close()
+                                dataOutputStream?.close()
+                                uiThread {
+                                    val timeEnd = System.currentTimeMillis()
+                                    val timeDiff = timeEnd - timeStart
+                                    val timeSec = timeDiff / 1000
+                                    textView.text = "File received in ${timeSec} s\n\n${textView.text}"
+                                    progressBar.visibility = View.GONE
+
+                                    openFileViaIntent(file)
+
+                                    openFileButton.visibility = View.VISIBLE
+                                    openFileButton.setOnClickListener {
+                                        openFileViaIntent(file)
+                                    }
+
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    private fun openFileViaIntent(file: File) {
+        val intent = Intent()
+        intent.action = android.content.Intent.ACTION_VIEW
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        val uri = Uri.parse(file.canonicalPath)
+        intent.setDataAndType(uri, Utils.fileType)
+        startActivity(intent)
     }
 
     private fun setupWakeLog() {
